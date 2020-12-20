@@ -1,0 +1,13 @@
+name: ICES_sample_map_shiny
+title: ICES_sample_map_shiny
+username:
+account: reminho
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 3416189
+bundleId: 4011482
+url: https://reminho.shinyapps.io/ICES_sample_map_shiny/
+when: 1608460231.15389
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: deploy_app.r|ICES_leaflet.r|ICES_sample_map (copy).Rmd|ICES_sample_map.Rmd

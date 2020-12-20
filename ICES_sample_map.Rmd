@@ -1,0 +1,272 @@
+---
+title: "ICES Sample Map"
+author: "By SR Brunner"
+date: "`r paste0('Date: ', format(Sys.time(), '%d.%m.%Y'))`"
+output: html_document
+runtime: shiny
+---
+
+<style type="text/css">
+.main-container {
+  max-width: 1800px;
+  margin-left: auto;
+  margin-right: auto;
+}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+
+```{r load packages, include = FALSE}
+library(shiny)
+library(ggplot2)
+library(knitr)
+library(leaflet)
+library(htmlwidgets)
+library(tidyverse)
+```
+
+```{r load data, include=FALSE}
+ices_temp <- read_csv("data/ices_temp.csv")
+ices_psal <- read_csv("data/ices_psal.csv")
+ices_cphl <- read_csv("data/ices_cphl.csv")
+ices_doxy <- read_csv("data/ices_doxy.csv")
+ices_download <- read_csv("data/ices_tot.csv")
+# for palettes
+ices_temp_df <- read_csv("data/ices_temp.csv")
+ices_psal_df <- read_csv("data/ices_psal.csv")
+ices_cphl_df <- read_csv("data/ices_cphl.csv")
+ices_doxy_df <- read_csv("data/ices_doxy.csv")
+
+# color palettes
+temp_pal <- colorNumeric("RdYlBu", domain = ices_temp$mean_temp, reverse = TRUE)
+temp_pal_legend <- colorNumeric("RdYlBu", domain = ices_temp_df$mean_temp, reverse = FALSE)
+
+psal_pal <- colorNumeric("Reds", domain = ices_psal$mean_psal, reverse = FALSE)
+psal_pal_legend <- colorNumeric("Reds", domain = ices_psal_df$mean_psal, reverse = TRUE)
+
+cphl_pal <- colorNumeric("Greens", domain = ices_cphl$mean_cphl, reverse = FALSE)
+cphl_pal_legend <- colorNumeric("Greens", domain = ices_cphl_df$mean_cphl, reverse = TRUE)
+
+doxy_pal <- colorNumeric("Blues", domain = ices_doxy$mean_doxy, reverse = FALSE)
+doxy_pal_legend <- colorNumeric("Blues", domain = ices_doxy_df$mean_doxy, reverse = TRUE)
+
+# about
+about_text <- "This Map App displays temperatur, salinity, chlorophyll a and oxygen levels from measurements of oceanographic stations in the Baltic Sea averaged for the year 2019. The dataset was downloaded from the ices.dk website on 16/12/2020. Users can filter a range of stations via slider input and are also able to download this filtered data in CSV format."
+```
+
+
+```{r baltic sea app, include = TRUE, echo=FALSE, out.height=600}
+ui <- bootstrapPage(
+  theme = shinythemes::shinytheme('simplex'),
+  mainPanel(
+   leaflet::leafletOutput('baltic_map', height = 600) 
+  ),
+  sidebarPanel(id = "controls",
+               sliderInput('temp_ctrl', "Filter temperature [°C]", 0, 25, value = c(0,25)),
+               sliderInput('psal_ctrl', "Filter salinity [psu]", 0, 30, value = c(0,30)),
+               sliderInput('cphl_ctrl', "Filter chlorophyll a levels [ug/l]", 0, 90, value = c(0,90)),
+               sliderInput('doxy_ctrl', "Filter oxygen levels [ml/l]", 0, 11, value = c(0,11)),
+               downloadButton("download_data", "Download filtered data"),
+               actionButton("about", "About")
+                )
+)
+server <- function (input,
+                    output,
+                    session) {
+  
+  # about section
+  observeEvent(input$about, {
+    showModal(modalDialog(about_text))
+  })
+  
+  # reactives
+  temp_react <- reactive({
+    ices_temp %>%
+      filter(mean_temp > input$temp_ctrl[1] & mean_temp < input$temp_ctrl[2])
+      
+  })
+  psal_react <- reactive({
+    ices_psal %>%
+      filter(mean_psal > input$psal_ctrl[1] & mean_psal < input$psal_ctrl[2])
+      
+  })
+  cphl_react <- reactive({
+    ices_cphl %>%
+      filter(mean_cphl > input$cphl_ctrl[1] & mean_cphl < input$cphl_ctrl[2])
+      
+  })
+  doxy_react <- reactive({
+    ices_doxy %>%
+      filter(mean_doxy > input$doxy_ctrl[1] & mean_doxy < input$doxy_ctrl[2])
+      
+  })
+  
+  download_react <- reactive({
+    ices_download %>%
+      filter(mean_temp > input$temp_ctrl[1] & mean_temp < input$temp_ctrl[2]) %>%
+      filter(mean_psal > input$psal_ctrl[1] & mean_psal < input$psal_ctrl[2]) %>%
+      filter(mean_cphl > input$cphl_ctrl[1] & mean_cphl < input$cphl_ctrl[2]) %>%
+      filter(mean_doxy > input$doxy_ctrl[1] & mean_doxy < input$doxy_ctrl[2])
+  })
+  
+  
+  
+  output$baltic_map <- leaflet::renderLeaflet({
+    # reactives
+    ices_temp_dat <- temp_react()
+    ices_psal_dat <- psal_react()
+    ices_cphl_dat <- cphl_react()
+    ices_doxy_dat <- doxy_react()
+    # output
+    leaflet(height = '100%',
+            options = leafletOptions(minZoom = 4,
+                                 dragging = TRUE)) %>%
+    setView(lng = 19.8633, lat = 58.48803, zoom = 5) %>%
+    setMaxBounds(lng1 = max(ices_temp_dat$lon) + 2,
+                 lat1 = max(ices_temp_dat$lat) + 2,
+                 lng2 = min(ices_temp_dat$lon) - 2,
+                 lat2 = min(ices_temp_dat$lat) - 2) %>%
+    addTiles(group = "OSM") %>%
+    addProviderTiles(provider = "CartoDB", group = "CartoDB") %>%
+    addProviderTiles(provider = "Esri", group = "Esri") %>%
+    addCircleMarkers(data = ices_temp_dat, 
+                     lng = ices_temp_dat$lon, 
+                     lat = ices_temp_dat$lat,
+                     group = "Temperature",
+                     radius = 3,
+                     color = ~temp_pal(mean_temp),
+                     popup = ~paste0("Station number: ", 
+                                     Station, "<br/>Mean temperature: ", 
+                                     round(mean_temp, 2), "°C")) %>%
+    addCircleMarkers(data = ices_psal_dat, 
+                     lng = ices_psal_dat$lon, 
+                     lat = ices_psal_dat$lat,
+                     group = "Salinity",
+                     radius = 3,
+                     color = ~psal_pal(mean_psal),
+                     popup = ~paste0("Station number: ", 
+                                     Station, "<br/>Mean salinity: ", 
+                                     round(mean_psal, 2), "psu")) %>%
+    addCircleMarkers(data = ices_cphl_dat, 
+                     lng = ices_cphl_dat$lon, 
+                     lat = ices_cphl_dat$lat,
+                     group = "Chlorophyll a Levels",
+                     radius = 3,
+                     color = ~cphl_pal(mean_cphl),
+                     popup = ~paste0("Station number: ", 
+                                     Station, "<br/>Mean chorophyll a: ", 
+                                     round(mean_cphl, 2), "ug/l")) %>%
+    addCircleMarkers(data = ices_doxy_dat,
+                     lng = ices_doxy_dat$lon,
+                     lat = ices_doxy_dat$lat,
+                     group = "Oxygen Levels",
+                     radius = 3,
+                     color = ~doxy_pal(ices_doxy_dat$mean_doxy),
+                     popup = ~paste0("Station number: ",
+                                     Station, "<br/>Mean oxygen levels: ",
+                                     round(ices_doxy_dat$mean_doxy, 2), "ml/l")) %>%
+  hideGroup(group = c("Temparature", "Chlorophyll a Levels", "Oxygen Levels")) %>%
+  addLayersControl(baseGroups = c("OSM", "CartoDB", "Esri"),
+                   overlayGroups = c("Temperature", "Salinity", "Chlorophyll a Levels", "Oxygen Levels"),
+                   options = layersControlOptions(collapsed = FALSE)) %>%
+  htmlwidgets::onRender(("
+            function() {
+              $('.leaflet-control-layers-list').prepend('<label style=\"text-align:center\">Choose Base Layer</label>');
+              $('.leaflet-control-layers-overlays').prepend('<label style=\"text-align:center\">Choose Data Layer</label>');
+            }"))
+    })
+  
+  
+  observeEvent(input$psal_ctrl, {
+    
+    ices_psal_dat <- psal_react()
+    
+    leafletProxy("baltic_map", session) %>%
+      showGroup(group = "Salinity") %>%
+      hideGroup(group = c("Temperature", "Chlorophyll a Levels", "Oxygen Levels")) %>%
+      addLegend(data = ices_psal_df,
+                values = seq(min(ices_psal_df$mean_psal), max(ices_psal_df$mean_psal), 5),
+                group = "Salinity",
+                position = "bottomright",
+                pal = psal_pal_legend,
+                labFormat = labelFormat(transform = function(x) sort(x, decreasing = TRUE)))
+  })
+  
+  observeEvent(input$cphl_ctrl, {
+    
+    ices_cphl_dat <- cphl_react()
+    
+    leafletProxy("baltic_map", session) %>%
+      showGroup(group = "Chlorophyll a Levels") %>%
+      hideGroup(group = c("Temperature", "Salinity", "Oxygen Levels")) %>%
+      addLegend(data = ices_cphl_df, 
+            values = seq(min(ices_cphl_df$mean_cphl), max(ices_cphl_df$mean_cphl), 10),
+            group = "Chlorophyll a Levels",
+            position = "bottomright",
+            pal = cphl_pal_legend,
+            labFormat = labelFormat(transform = function(x) sort(x, decreasing = TRUE)))
+  })
+  
+  observeEvent(input$doxy_ctrl, {
+    
+    ices_doxy_dat <- doxy_react()
+    
+    leafletProxy("baltic_map", session) %>%
+      showGroup(group = "Oxygen Levels") %>%
+      hideGroup(group = c("Temperature", "Salinity", "Chlorophyll a Levels")) %>%
+      addLegend(data = ices_doxy_df, 
+            values = seq(min(ices_doxy_df$mean_doxy), max(ices_doxy_df$mean_doxy), 2),
+            group = "Oxygen Levels",
+            position = "bottomright",
+            pal = doxy_pal_legend,
+            labFormat = labelFormat(transform = function(x) sort(x, decreasing = TRUE)))
+  })
+  
+  observeEvent(input$temp_ctrl, {
+    
+    ices_temp_dat <- temp_react()
+    
+    leafletProxy("baltic_map", session) %>%
+      showGroup(group = "Temperature") %>%
+      hideGroup(group = c("Salinity", "Chlorophyll a Levels", "Oxygen Levels")) %>%
+      addLegend(data = ices_temp_df, 
+            values = rev(seq(min(ices_temp_df$mean_temp), max(ices_temp_df$mean_temp), 5)),
+            group = "Temperature",
+            position = "bottomright",
+            pal = temp_pal_legend,
+            labFormat = labelFormat(transform = function(x) sort(x, decreasing = TRUE)))
+  })
+  
+  # download
+  output$download_data <- downloadHandler(
+    filename = function() {
+      paste0("ices_baltic_2019", ".csv")
+    },
+    content = function(file) {
+      write.csv(download_react(), file, row.names = FALSE)
+    }
+  )
+  
+}
+shinyApp(ui = ui, server = server)
+```
+
+&nbsp;
+<hr />
+<p style="text-align: center;">A work by <a href="https://www.kaggle.com/reminho">SR Brunner</a></p>
+<p style="text-align: center;"><span style="color: #808080;"><em>remy.data@gmx.ch</em></span></p>
+
+<!-- Add icon library -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
+<!-- Add font awesome icons -->
+<p style="text-align: center;">
+    <a href="https://www.linkedin.com/in/wanaka/" class="fa fa-linkedin"></a>
+</p>
+
+&nbsp;
+
+

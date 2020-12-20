@@ -1,0 +1,10 @@
+name: ices_sample_map
+title:
+username:
+account: reminho
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 3407668
+bundleId: 3998468
+url: https://reminho.shinyapps.io/ices_sample_map/
+when: 1608151661.10771
