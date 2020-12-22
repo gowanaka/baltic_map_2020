@@ -20,7 +20,7 @@ The map includes almost 2500 data points. Users can: <br>
 
 ### Data
 * The `data` folder contains all the data I used to build the map. `ices_baltic_2019.csv` contains the raw unfiltered data. 
-`ices_cphl.csv`, `ices_doxy.csv`, `ices_psal.csv` & `ices_temp.csv` contain the data for each data layer. `ices_tot.csv` contains the filtered raw data and is the data downloadable from the Web App. <br>
+* `ices_cphl.csv`, `ices_doxy.csv`, `ices_psal.csv` & `ices_temp.csv` contain the data for each data layer. `ices_tot.csv` contains the filtered raw data and is the data downloadable from the Web App. <br>
 
 ### Code
 
