@@ -24,4 +24,5 @@ The map includes almost 2500 data points. Users can: <br>
 
 ### Code
 
-`ICES_leaflet.r` contains the code I used to filter and prepare the raw data. Finally, `ICES_sample_map_fullscreen.r` contains the source code used to build the web app using shiny and leaflet.
+* `ICES_leaflet.r` contains the code I used to filter and prepare the raw data. 
+* Finally, `ICES_sample_map_fullscreen.r` contains the source code used to build the web app using shiny and leaflet.
