@@ -5,30 +5,26 @@ library(htmlwidgets)
 library(tidyverse)
 
 # load data
-ices_temp <- read_csv("data/ices_temp.csv")
-ices_psal <- read_csv("data/ices_psal.csv")
-ices_cphl <- read_csv("data/ices_cphl.csv")
-ices_doxy <- read_csv("data/ices_doxy.csv")
-ices_download <- read_csv("data/ices_tot.csv")
-# for palettes
 ices_temp_df <- read_csv("data/ices_temp.csv")
 ices_psal_df <- read_csv("data/ices_psal.csv")
 ices_cphl_df <- read_csv("data/ices_cphl.csv")
 ices_doxy_df <- read_csv("data/ices_doxy.csv")
+# download
+ices_download <- read_csv("data/ices_tot.csv")
 
 
 # color palettes
-temp_pal <- colorNumeric("RdYlBu", domain = ices_temp_df$mean_temp, reverse = TRUE)
-temp_pal_legend <- colorNumeric("RdYlBu", domain = ices_temp_df$mean_temp, reverse = FALSE)
+temp_pal <- colorNumeric("RdYlBu", domain = ices_temp_df$mean_temp, reverse = TRUE, na.color = "#0c0c0c")
+temp_pal_legend <- colorNumeric("RdYlBu", domain = ices_temp_df$mean_temp, reverse = FALSE, na.color = "#0c0c0c")
 
-psal_pal <- colorNumeric("Reds", domain = ices_psal_df$mean_psal, reverse = FALSE)
-psal_pal_legend <- colorNumeric("Reds", domain = ices_psal_df$mean_psal, reverse = TRUE)
+psal_pal <- colorNumeric("Reds", domain = ices_psal_df$mean_psal, reverse = FALSE, na.color = "#0c0c0c")
+psal_pal_legend <- colorNumeric("Reds", domain = ices_psal_df$mean_psal, reverse = TRUE, na.color = "#0c0c0c")
 
-cphl_pal <- colorNumeric("Greens", domain = ices_cphl_df$mean_cphl, reverse = FALSE)
-cphl_pal_legend <- colorNumeric("Greens", domain = ices_cphl_df$mean_cphl, reverse = TRUE)
+cphl_pal <- colorNumeric("Greens", domain = ices_cphl_df$mean_cphl, reverse = FALSE, na.color = "#0c0c0c")
+cphl_pal_legend <- colorNumeric("Greens", domain = ices_cphl_df$mean_cphl, reverse = TRUE, na.color = "#0c0c0c")
 
-doxy_pal <- colorNumeric("Blues", domain = ices_doxy_df$mean_doxy, reverse = FALSE)
-doxy_pal_legend <- colorNumeric("Blues", domain = ices_doxy_df$mean_doxy, reverse = TRUE)
+doxy_pal <- colorNumeric("Blues", domain = ices_doxy_df$mean_doxy, reverse = FALSE, na.color = "#0c0c0c")
+doxy_pal_legend <- colorNumeric("Blues", domain = ices_doxy_df$mean_doxy, reverse = TRUE, na.color = "#0c0c0c")
 
 # about
 about_text <- "This Map App displays temperatur, salinity, chlorophyll a and oxygen levels from measurements of oceanographic stations in the Baltic Sea averaged for the year 2019. The dataset was downloaded from the ices.dk website on 16/12/2020. Users can filter a range of stations via slider input and are also able to download this filtered data in CSV format."
@@ -51,15 +47,16 @@ ui <- bootstrapPage(
                "),
   theme = shinythemes::shinytheme('simplex'),
   titlePanel("ICES Sample Map"),
-  h3("By SR Brunner"),
-  h4("18/12/2020"),
+  h3("By", strong("SR Brunner")),
+  h4("27/12/2020"),
   leaflet::leafletOutput('baltic_map', height = 600),
-  absolutePanel(id = "controls", bottom = 8, left = 10, draggable = FALSE,
+  absolutePanel(id = "controls", bottom = 0, left = 10, draggable = FALSE, fixed = TRUE,
                 h4("Filters"),
                 sliderInput('temp_ctrl', "Filter Temperature [°C]", 0, 25, value = c(0,25)),
                 sliderInput('psal_ctrl', "Filter Salinity [psu]", 0, 30, value = c(0,30)),
                 sliderInput('cphl_ctrl', "Filter Chlorophyll A Levels [ug/l]", 0, 90, value = c(0,90)),
                 sliderInput('doxy_ctrl', "Filter Oxygen Levels [ml/l]", 0, 11, value = c(0,11)),
+                checkboxInput("include_na", "Include missing data in download file?", value = TRUE),
                 textOutput("download_text"), br(),
                 downloadButton("download_data", "Download filtered data"),
                 actionButton("reset", "Reset"),
@@ -84,35 +81,41 @@ server <- function (input, output, session) {
   
   # reactives
   temp_react <- reactive({
-    ices_temp %>%
-      filter(mean_temp > input$temp_ctrl[1] & mean_temp < input$temp_ctrl[2])
-    
+    ices_temp_df %>%
+      filter(mean_temp >= input$temp_ctrl[1] & mean_temp <= input$temp_ctrl[2])
   })
+  
   psal_react <- reactive({
-    ices_psal %>%
-      filter(mean_psal > input$psal_ctrl[1] & mean_psal < input$psal_ctrl[2])
-    
+    ices_psal_df %>%
+      filter(mean_psal >= input$psal_ctrl[1] & mean_psal <= input$psal_ctrl[2])
   })
+  
   cphl_react <- reactive({
-    ices_cphl %>%
-      filter(mean_cphl > input$cphl_ctrl[1] & mean_cphl < input$cphl_ctrl[2])
-    
+    ices_cphl_df %>%
+      filter(mean_cphl >= input$cphl_ctrl[1] & mean_cphl <= input$cphl_ctrl[2])
   })
+  
   doxy_react <- reactive({
-    ices_doxy %>%
-      filter(mean_doxy > input$doxy_ctrl[1] & mean_doxy < input$doxy_ctrl[2])
-    
+    ices_doxy_df %>%
+      filter(mean_doxy >= input$doxy_ctrl[1] & mean_doxy <= input$doxy_ctrl[2])
   })
   
   download_react <- reactive({
     ices_download %>%
-      filter(mean_temp > input$temp_ctrl[1] & mean_temp < input$temp_ctrl[2]) %>%
-      filter(mean_psal > input$psal_ctrl[1] & mean_psal < input$psal_ctrl[2]) %>%
-      filter(mean_cphl > input$cphl_ctrl[1] & mean_cphl < input$cphl_ctrl[2]) %>%
-      filter(mean_doxy > input$doxy_ctrl[1] & mean_doxy < input$doxy_ctrl[2])
+      filter(mean_temp >= input$temp_ctrl[1] & mean_temp <= input$temp_ctrl[2]) %>%
+      filter(mean_psal >= input$psal_ctrl[1] & mean_psal <= input$psal_ctrl[2]) %>%
+      filter(mean_cphl >= input$cphl_ctrl[1] & mean_cphl <= input$cphl_ctrl[2]) %>%
+      filter(mean_doxy >= input$doxy_ctrl[1] & mean_doxy <= input$doxy_ctrl[2])
   })
   
-  
+  download_react_with_na <- reactive({
+    ices_download %>%
+      filter(is.na(mean_temp) | mean_temp >= input$temp_ctrl[1] & mean_temp <= input$temp_ctrl[2]) %>%
+      filter(is.na(mean_psal) | mean_psal >= input$psal_ctrl[1] & mean_psal <= input$psal_ctrl[2]) %>%
+      filter(is.na(mean_cphl) | mean_cphl >= input$cphl_ctrl[1] & mean_cphl <= input$cphl_ctrl[2]) %>%
+      filter(is.na(mean_doxy) | mean_doxy >= input$doxy_ctrl[1] & mean_doxy <= input$doxy_ctrl[2])
+  })
+
   # map output
   output$baltic_map <- leaflet::renderLeaflet({
 
@@ -295,8 +298,13 @@ server <- function (input, output, session) {
   
   # download text
   output$download_text <- renderText({
-    download_file <- download_react()
-    paste0("Your download file will contain ", nrow(download_file), " rows. Continue?")
+    if (input$include_na == TRUE) {
+      download_file <- download_react_with_na()
+      paste0("Your download file will contain ", nrow(download_file), " rows. Continue?")
+    } else {
+      download_file <- download_react()
+      paste0("Your download file will contain ", nrow(download_file), " rows. Continue?") 
+    }
   })
   
   # download
@@ -305,7 +313,11 @@ server <- function (input, output, session) {
       paste0("ices_baltic_2019", ".csv")
     },
     content = function(file) {
-      write.csv(download_react(), file, row.names = FALSE)
+      if (input$include_na == TRUE) {
+        write.csv(download_react_with_na(), file, row.names = FALSE)
+      } else {
+        write.csv(download_react(), file, row.names = FALSE)
+      }
     }
   )
 }
